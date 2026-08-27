@@ -3,8 +3,7 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   Easing,
-  FadeInDown,
-  FadeOutUp,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -13,13 +12,15 @@ import { colors } from '../theme';
 import { snapshotNearbyShops, tickNearbyShop, type NearbyShopRow } from '../shop/nearby';
 
 const ease = Easing.out(Easing.cubic);
+const DURATION = 340;
 
 export function NearbyShopsCard() {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<NearbyShopRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const flip = useSharedValue(0);
+  const progress = useSharedValue(0);
+  const measured = useSharedValue(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -49,13 +50,19 @@ export function NearbyShopsCard() {
   }, [open, refresh]);
 
   const chevronStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${flip.value * 180}deg` }],
+    transform: [{ rotate: `${progress.value * 180}deg` }],
+  }));
+
+  const sheetStyle = useAnimatedStyle(() => ({
+    height: progress.value * measured.value,
+    opacity: interpolate(progress.value, [0, 0.35, 1], [0, 0.85, 1]),
+    transform: [{ translateY: interpolate(progress.value, [0, 1], [-10, 0]) }],
   }));
 
   const toggle = () => {
     setOpen((current) => {
       const next = !current;
-      flip.value = withTiming(next ? 1 : 0, { duration: 280, easing: ease });
+      progress.value = withTiming(next ? 1 : 0, { duration: DURATION, easing: ease });
       return next;
     });
   };
@@ -73,13 +80,23 @@ export function NearbyShopsCard() {
           <Ionicons name="chevron-down" size={20} color={colors.muted} />
         </Animated.View>
       </Pressable>
-      {open ? (
-        <Animated.View
-          entering={FadeInDown.duration(320).easing(ease)}
-          exiting={FadeOutUp.duration(220).easing(ease)}
-          className="mt-3 overflow-hidden"
+      <Animated.View style={[{ overflow: 'hidden' }, sheetStyle]}>
+        <View
+          collapsable={false}
+          className="pt-3"
+          style={{ position: 'absolute', left: 0, right: 0 }}
+          onLayout={(event) => {
+            const height = event.nativeEvent.layout.height;
+            queueMicrotask(() => {
+              measured.value = height;
+            });
+          }}
         >
-          {busy && rows.length === 0 ? <ActivityIndicator color={colors.forest} /> : null}
+          {busy && rows.length === 0 ? (
+            <View className="h-8 justify-center" collapsable={false}>
+              <ActivityIndicator color={colors.forest} />
+            </View>
+          ) : null}
           {error ? <Text className="text-[13px] leading-5 text-muted">{error}</Text> : null}
           {!busy && !error && rows.length === 0 ? (
             <Text className="text-[13px] leading-5 text-muted">No grocery stores nearby.</Text>
@@ -108,8 +125,8 @@ export function NearbyShopsCard() {
               ) : null}
             </View>
           ))}
-        </Animated.View>
-      ) : null}
+        </View>
+      </Animated.View>
     </View>
   );
 }
