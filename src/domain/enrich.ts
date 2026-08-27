@@ -27,6 +27,10 @@ function cacheKey(ingredient: ScanIngredient): string {
   return ingredient.additiveId ?? `${ingredient.eNumber ?? ''}|${ingredient.canonicalName.toLowerCase()}`;
 }
 
+export function isEnriched(additive: Additive | null | undefined): boolean {
+  return Boolean(additive?.enrichedAt && additive.description.trim().length > 0);
+}
+
 export async function loadAdditiveForIngredient(
   ingredient: ScanIngredient,
 ): Promise<Additive | null> {
@@ -66,25 +70,29 @@ async function enrichIfNeededUncached(ingredient: ScanIngredient): Promise<{
   if (additive && !ingredient.additiveId) {
     await linkScanIngredientAdditive(db, ingredient.id, additive.id);
   }
-  const needsFetch = !additive || additive.enrichedAt === null;
-
-  if (!needsFetch) {
+  if (isEnriched(additive)) {
     return { additive, offlineNote: false };
   }
 
   try {
-    console.log('[enrichment] call', additive?.id ?? ingredient.canonicalName);
-    const storedLevel = additive?.level ?? null;
+    const lockedLevel = isLevel(additive?.level ?? '') ? additive!.level : ingredient.level;
     const response = await enrichIngredient({
       canonicalName: additive?.canonicalName ?? ingredient.canonicalName,
       eNumber: additive?.eNumber ?? ingredient.eNumber,
       category: additive?.category ?? null,
-      storedLevel,
+      storedLevel: lockedLevel,
       storedReason: additive?.levelReason || ingredient.levelReason,
       description: additive?.description ?? null,
       purpose: additive?.purpose ?? null,
       asPrinted: ingredient.nameAsPrinted,
     });
+
+    const keepSeedLevel = Boolean(additive && isLevel(additive.level));
+    const nextLevel = keepSeedLevel && additive ? additive.level : ingredient.level;
+    const nextReason =
+      keepSeedLevel && additive
+        ? additive.levelReason || ingredient.levelReason
+        : ingredient.levelReason;
 
     if (!additive) {
       additive = {
@@ -93,9 +101,9 @@ async function enrichIfNeededUncached(ingredient: ScanIngredient): Promise<{
         aliases: [ingredient.nameAsPrinted],
         eNumber: ingredient.eNumber,
         category: 'ingredient',
-        level: response.level,
+        level: nextLevel,
         levelSource: 'llm',
-        levelReason: response.levelReason,
+        levelReason: nextReason,
         description: response.description,
         purpose: response.purpose,
         enrichedAt: Date.now(),
@@ -105,17 +113,11 @@ async function enrichIfNeededUncached(ingredient: ScanIngredient): Promise<{
       await insertAdditive(db, additive);
       await linkScanIngredientAdditive(db, ingredient.id, additive.id);
     } else {
-      const wasUnknown = additive.level === 'unknown';
-      const nextLevel = wasUnknown
-        ? response.level
-        : isLevel(additive.level)
-          ? additive.level
-          : response.level;
       additive = {
         ...additive,
         level: nextLevel,
-        levelSource: wasUnknown ? 'llm' : additive.levelSource ?? 'llm',
-        levelReason: wasUnknown ? response.levelReason : additive.levelReason || response.levelReason,
+        levelSource: keepSeedLevel ? additive.levelSource : additive.levelSource ?? 'llm',
+        levelReason: nextReason,
         description: response.description,
         purpose: response.purpose,
         enrichedAt: Date.now(),

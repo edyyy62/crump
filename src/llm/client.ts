@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import { extraConfig } from '../lib/config';
 import {
   enrichmentJsonSchema,
   enrichmentResponseSchema,
@@ -26,17 +26,8 @@ export class LlmError extends Error {
   }
 }
 
-type Extra = {
-  openaiApiKey?: string;
-  openaiModel?: string;
-};
-
-function extra(): Extra {
-  return (Constants.expoConfig?.extra ?? {}) as Extra;
-}
-
 function config() {
-  const { openaiApiKey, openaiModel } = extra();
+  const { openaiApiKey } = extraConfig();
   // Personal-use round 1: the API key ships on-device via extra. Move this
   // call behind a proxy before any public distribution.
   if (!openaiApiKey) {
@@ -44,7 +35,7 @@ function config() {
   }
   return {
     apiKey: openaiApiKey,
-    model: openaiModel || 'gpt-5-mini',
+    model: 'gpt-4o-mini',
   };
 }
 
@@ -65,7 +56,16 @@ async function chatCompletion(body: Record<string, unknown>): Promise<unknown> {
   }
 
   if (!response.ok) {
-    throw new LlmError(`Analysis service returned ${response.status}`, 'api');
+    let detail = `Analysis service returned ${response.status}`;
+    try {
+      const errBody = (await response.json()) as { error?: { message?: string } };
+      if (errBody.error?.message) {
+        detail = errBody.error.message;
+      }
+    } catch {
+      // keep status-only message
+    }
+    throw new LlmError(detail, 'api');
   }
 
   const json = (await response.json()) as {

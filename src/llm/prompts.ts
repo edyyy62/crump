@@ -9,30 +9,34 @@ export const SCAN_SYSTEM_PROMPT = `You read photographs of packaged-food ingredi
 ${LEVEL_DEFINITIONS}
 
 Rules:
-- Preserve the printed order of ingredients.
-- Unpack parenthesized sub-ingredients one level deep (e.g. "emulsifier (soy lecithin)").
+- Preserve the printed order of first mention.
+- List each distinct ingredient once. If the same substance appears again (same canonical name, alias, or E-number), do not emit another row.
+- Unpack parenthesized sub-ingredients one level deep (e.g. "emulsifier (soy lecithin)"), but skip a sub-ingredient that was already listed.
+- Also read precautionary allergen / traces lines anywhere on the pack: "may contain", "may contain traces of", "produced in a facility that also processes", "not suitable for people with … allergy" when substances are named. Put those substances in mayContain, not in ingredients.
+- Do not copy a substance into mayContain if it is already listed as an ingredient or sub-ingredient.
 - If the label shows multiple languages, use the English section only.
-- If the image is not a legible ingredient label, set readable to false and return an empty ingredients array.
+- If the image is not a legible ingredient label, set readable to false and return empty ingredients and mayContain arrays.
 - nameAsPrinted is verbatim from the label. canonicalName is a normalized English name.
 - eNumber is the "E322" form when stated or certainly known, otherwise null.
-- level is your own judgment using the definitions above. levelReason is one sentence.`;
+- level is your own judgment using the definitions above. levelReason is one sentence. For mayContain items, say that this is a traces / may-contain warning, not a recipe ingredient.`;
 
-export const SCAN_USER_PROMPT = 'Extract the product name, brand, and full ingredient list from this label photo.';
+export const SCAN_USER_PROMPT =
+  'Extract the product name, brand, the full ingredient list, and any may-contain / traces warnings from this label photo.';
 
 export function enrichmentSystemPrompt(opts: {
   lockedLevel: boolean;
 }): string {
   const lock = opts.lockedLevel
-    ? `The database already assigned a concrete risk level. Expand description, purpose, typical products, and alternatives. Return that same level. If you would choose a different level, discard your level and keep the database level.`
-    : `The database could not assign a level. Assign organic, low, moderate, or high using the definitions below.`;
+    ? `Do not re-evaluate risk. Echo the stored level and stored reason. Write only description, purpose, typical products, and alternatives.`
+    : `The database could not assign a level. Assign organic, low, moderate, or high using the definitions below, then write the encyclopedia fields.`;
 
-  return `You enrich a food additive or ingredient for a personal label-scanning app.
+  return `You write a short encyclopedia entry for a food additive or ingredient. The scan already graded this item; this call is for reusable background text only.
 
 ${LEVEL_DEFINITIONS}
 
 ${lock}
 
-Keep levelReason to one sentence naming the criterion that was hit. typicalProducts and alternatives are short English phrases.`;
+Keep levelReason to one sentence. typicalProducts and alternatives are short English phrases.`;
 }
 
 export function enrichmentUserPrompt(input: {

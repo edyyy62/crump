@@ -22,6 +22,7 @@ export const scanResponseSchema = z.object({
   productName: z.string().nullable(),
   brand: z.string().nullable(),
   ingredients: z.array(scanIngredientSchema),
+  mayContain: z.array(subIngredientSchema),
 });
 
 export type ScanResponse = z.infer<typeof scanResponseSchema>;
@@ -84,8 +85,9 @@ export const scanJsonSchema = {
         ],
       },
     },
+    mayContain: { type: 'array', items: subIngredientJson },
   },
-  required: ['readable', 'productName', 'brand', 'ingredients'],
+  required: ['readable', 'productName', 'brand', 'ingredients', 'mayContain'],
 } as const;
 
 export const enrichmentJsonSchema = {

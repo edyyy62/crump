@@ -58,6 +58,7 @@ export function rowToIngredient(row: Record<string, unknown>): ScanIngredient {
     source: row.source as ScanIngredient['source'],
     levelReason: String(row.level_reason),
     additiveId: row.additive_id ? String(row.additive_id) : null,
+    mention: row.mention === 'may_contain' ? 'may_contain' : 'listed',
   };
 }
 
@@ -216,8 +217,8 @@ export async function insertScanWithIngredients(
       await db.runAsync(
         `INSERT INTO scan_ingredients (
           id, scan_id, position, parent_id, name_as_printed, canonical_name, e_number,
-          level, source, level_reason, additive_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          level, source, level_reason, additive_id, mention
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ingredient.id,
         ingredient.scanId,
         ingredient.position,
@@ -229,6 +230,7 @@ export async function insertScanWithIngredients(
         ingredient.source,
         ingredient.levelReason,
         ingredient.additiveId,
+        ingredient.mention,
       );
     }
   });
@@ -249,13 +251,37 @@ export async function replaceAdditivesFromSeed(
   db: SQLiteDatabase,
   seed: SeedFile,
 ): Promise<void> {
+  const previous = await listAdditives(db);
+  const enrichedByE = new Map(
+    previous
+      .filter((row) => row.enrichedAt && row.eNumber)
+      .map((row) => [normalizeENumber(row.eNumber) ?? row.eNumber, row] as const),
+  );
+  const enrichedByName = new Map(
+    previous
+      .filter((row) => row.enrichedAt)
+      .map((row) => [row.canonicalName.toLowerCase(), row] as const),
+  );
+
   await db.withTransactionAsync(async () => {
     await db.execAsync('DELETE FROM additives');
     for (const additive of seed.additives) {
-      const normalized: Additive = {
-        ...additive,
-        eNumber: normalizeENumber(additive.eNumber) ?? additive.eNumber,
-      };
+      const eNumber = normalizeENumber(additive.eNumber) ?? additive.eNumber;
+      const prior =
+        (eNumber ? enrichedByE.get(eNumber) : undefined) ??
+        enrichedByName.get(additive.canonicalName.toLowerCase());
+      const normalized: Additive = prior
+        ? {
+            ...additive,
+            id: prior.id,
+            eNumber,
+            description: prior.description,
+            purpose: prior.purpose,
+            enrichedAt: prior.enrichedAt,
+            typicalProducts: prior.typicalProducts,
+            alternatives: prior.alternatives,
+          }
+        : { ...additive, eNumber };
       await insertAdditive(db, normalized);
     }
     await db.runAsync(

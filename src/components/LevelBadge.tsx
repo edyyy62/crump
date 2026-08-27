@@ -9,12 +9,10 @@ const solid: Record<Level, string> = {
   high: 'bg-high',
 };
 
-export function LevelBadge({ level, compact = false }: { level: Level; compact?: boolean }) {
+export function LevelBadge({ level }: { level: Level; compact?: boolean; small?: boolean }) {
   return (
-    <View className={`self-start rounded-full ${solid[level]} ${compact ? 'px-2 py-0.5' : 'px-2.5 py-1'}`}>
-      <Text className={`font-semibold uppercase tracking-wide text-white ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
-        {LEVEL_LABELS[level]}
-      </Text>
+    <View className={`rounded-full px-2 py-0.5 ${solid[level]}`}>
+      <Text className="text-[11px] font-semibold leading-[14px] text-white">{LEVEL_LABELS[level]}</Text>
     </View>
   );
 }

@@ -33,9 +33,18 @@ describe('scanResponseSchema', () => {
           ],
         },
       ],
+      mayContain: [
+        {
+          nameAsPrinted: 'may contain milk',
+          canonicalName: 'milk',
+          eNumber: null,
+          level: 'organic',
+          levelReason: 'Traces warning',
+        },
+      ],
     });
     expect(parsed.ingredients).toHaveLength(2);
-    expect(parsed.ingredients[1]?.subIngredients).toHaveLength(1);
+    expect(parsed.mayContain).toHaveLength(1);
   });
 
   it('rejects an invalid level', () => {
@@ -53,6 +62,7 @@ describe('scanResponseSchema', () => {
           subIngredients: [],
         },
       ],
+      mayContain: [],
     });
     expect(result.success).toBe(false);
   });

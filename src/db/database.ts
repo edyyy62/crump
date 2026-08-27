@@ -57,4 +57,10 @@ export async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_scan_ingredients_scan ON scan_ingredients(scan_id, position);
     CREATE INDEX IF NOT EXISTS idx_additives_e_number ON additives(e_number);
   `);
+  const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(scan_ingredients)');
+  if (!columns.some((column) => column.name === 'mention')) {
+    await db.execAsync(
+      `ALTER TABLE scan_ingredients ADD COLUMN mention TEXT NOT NULL DEFAULT 'listed'`,
+    );
+  }
 }

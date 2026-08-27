@@ -14,6 +14,13 @@ export const LEVEL_LABELS: Record<Level, string> = {
   high: 'High',
 };
 
+export const LEVEL_HINTS: Record<Level, string> = {
+  organic: 'A natural ingredient that belongs in food.',
+  low: 'Processed, but generally fine at typical use.',
+  moderate: 'Worth limiting if you eat a lot of it.',
+  high: 'The one to be most careful with.',
+};
+
 export function isLevel(value: string): value is Level {
   return value === 'organic' || value === 'low' || value === 'moderate' || value === 'high';
 }
@@ -33,7 +40,7 @@ export function formatCountSummary(counts: Record<Level, number>): string {
   const parts: string[] = [];
   for (const level of ['organic', 'low', 'moderate', 'high'] as const) {
     if (counts[level] > 0) {
-      parts.push(`${counts[level]} ${level}`);
+      parts.push(`${counts[level]} ${LEVEL_LABELS[level].toLowerCase()}`);
     }
   }
   return parts.join(' · ');

@@ -2,12 +2,13 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackGlyph } from '../components/Glyphs';
+import { Ionicons } from '@expo/vector-icons';
 import { getDb } from '../db/database';
 import { getScanIngredient } from '../db/repositories';
-import { enrichIfNeeded, loadAdditiveForIngredient } from '../domain/enrich';
-import { isLevel } from '../domain/level';
+import { enrichIfNeeded, isEnriched, loadAdditiveForIngredient } from '../domain/enrich';
+import { LEVEL_HINTS } from '../domain/level';
 import { LevelBadge } from '../components/LevelBadge';
+import { AiMark } from '../components/AiMark';
 import { SkeletonBlock } from '../components/SkeletonBlock';
 import { colors, levelHeader } from '../theme';
 import type { Additive, ScanIngredient } from '../types';
@@ -29,7 +30,9 @@ export function IngredientScreen() {
       if (!row || cancelled) return;
       setIngredient(row);
       const existing = await loadAdditiveForIngredient(row);
-      if (!cancelled) setAdditive(existing);
+      if (cancelled) return;
+      setAdditive(existing);
+      setEnriching(!isEnriched(existing));
       const result = await enrichIfNeeded(row);
       if (cancelled) return;
       setAdditive(result.additive);
@@ -42,51 +45,52 @@ export function IngredientScreen() {
     };
   }, [id]);
 
-  const headerLevel =
-    additive && isLevel(additive.level) ? additive.level : (ingredient?.level ?? 'low');
+  const headerLevel = ingredient?.level ?? 'low';
   const headerColor = levelHeader[headerLevel];
   const canonical = additive?.canonicalName ?? ingredient?.canonicalName ?? '';
   const printed = ingredient?.nameAsPrinted;
   const showPrinted = printed && printed.toLowerCase() !== canonical.toLowerCase();
   const description = additive?.description || null;
   const purpose = additive?.purpose || null;
-  const reason = additive?.levelReason || ingredient?.levelReason || '';
+  const reason = ingredient?.levelReason || additive?.levelReason || '';
   const typical = additive?.typicalProducts;
   const alternatives = additive?.alternatives;
+  const aiGraded = ingredient?.source === 'llm';
+  const aiCopy = Boolean(additive?.enrichedAt);
+  const hasWhere = Boolean(typical?.length || alternatives?.length);
 
   return (
     <View className="flex-1 bg-page" style={{ paddingTop: insets.top }}>
-      <View className="px-3 py-2">
+      <View className="px-3 py-1">
         <Pressable onPress={() => router.back()} className="self-start p-2">
-          <BackGlyph color={colors.forest} />
+          <Ionicons name="chevron-back" size={26} color={colors.forest} />
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-        <View className="mx-5 overflow-hidden rounded-3xl" style={{ backgroundColor: headerColor }}>
-          <View className="p-5">
-            <Text className="text-[28px] font-semibold leading-8 text-ink">{canonical}</Text>
-            {showPrinted ? (
-              <Text className="mt-1 text-[14px] italic text-ink/70">as printed: {printed}</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+        <View className="mx-5 overflow-hidden rounded-[24px] p-5" style={{ backgroundColor: headerColor }}>
+          <Text className="text-[28px] font-semibold leading-8 text-ink">{canonical}</Text>
+          {showPrinted ? (
+            <Text className="mt-1 text-[14px] italic text-ink/70">On the pack: {printed}</Text>
+          ) : null}
+          <View className="mt-3 flex-row flex-wrap items-center gap-1.5">
+            {ingredient?.eNumber ? (
+              <View className="rounded px-1.5 py-px bg-white/50">
+                <Text className="text-[10px] font-semibold text-forest">{ingredient.eNumber}</Text>
+              </View>
             ) : null}
-            <View className="mt-3 flex-row flex-wrap items-center gap-2">
-              {ingredient?.eNumber ? (
-                <View className="rounded-md bg-white/50 px-2 py-1">
-                  <Text className="text-[12px] font-semibold text-forest">{ingredient.eNumber}</Text>
-                </View>
-              ) : null}
-              {additive?.category ? (
-                <Text className="text-[13px] capitalize text-ink/70">{additive.category}</Text>
-              ) : null}
-              {ingredient ? <LevelBadge level={headerLevel} /> : null}
-              {ingredient?.source === 'llm' ? (
-                <Text className="text-[12px] italic text-ink/70">LLM-judged</Text>
-              ) : null}
-            </View>
+            {ingredient ? <LevelBadge level={headerLevel} /> : null}
+            {aiGraded ? <AiMark label="AI graded" /> : null}
           </View>
+          {ingredient?.mention === 'may_contain' ? (
+            <Text className="mt-2 text-[13px] leading-5 text-ink/70">
+              A may-contain / traces warning on the pack, not a recipe ingredient.
+            </Text>
+          ) : null}
+          <Text className="mt-3 text-[13px] leading-5 text-ink/70">{LEVEL_HINTS[headerLevel]}</Text>
         </View>
 
-        <Section title="What it is & purpose">
+        <Section title="What it is" ai={aiCopy && Boolean(description || purpose)}>
           {description ? <Text className="text-[16px] leading-6 text-ink">{description}</Text> : null}
           {purpose ? <Text className="mt-2 text-[16px] leading-6 text-ink">{purpose}</Text> : null}
           {!description && !purpose && enriching ? <SkeletonCopy /> : null}
@@ -95,27 +99,33 @@ export function IngredientScreen() {
           ) : null}
         </Section>
 
-        <Section title="Why this level">
-          {reason ? <Text className="text-[16px] leading-6 text-ink">{reason}</Text> : <SkeletonCopy />}
+        <Section title="Why this grade" ai={aiGraded} aiLabel="AI graded">
+          {reason ? (
+            <Text className="text-[16px] leading-6 text-ink">{reason}</Text>
+          ) : enriching ? (
+            <SkeletonCopy />
+          ) : (
+            <Text className="text-[15px] text-muted">Graded from this scan, with no extra note.</Text>
+          )}
         </Section>
 
-        <Section title="Typical products & alternatives">
+        <Section title="Where it shows up" ai={aiCopy && hasWhere}>
           {enriching && !typical ? <SkeletonCopy /> : null}
           {typical && typical.length > 0 ? (
-            <Text className="text-[16px] leading-6 text-ink">
-              Typical in {typical.join(', ')}.
-            </Text>
+            <Text className="text-[16px] leading-6 text-ink">Typical in {typical.join(', ')}.</Text>
           ) : null}
           {alternatives && alternatives.length > 0 ? (
             <Text className="mt-2 text-[16px] leading-6 text-ink">
-              Alternatives: {alternatives.join(', ')}.
+              Often swapped for {alternatives.join(', ')}.
             </Text>
           ) : null}
-          {!enriching && !typical && !alternatives ? (
+          {!enriching && !typical?.length && !alternatives?.length ? (
             <Text className="text-[15px] text-muted">No extra detail cached yet.</Text>
           ) : null}
           {offlineNote ? (
-            <Text className="mt-3 text-[13px] italic text-muted">More details when online.</Text>
+            <Text className="mt-3 text-[13px] italic text-muted">
+              Couldn’t fetch a description. The grade from this scan is unchanged.
+            </Text>
           ) : null}
         </Section>
       </ScrollView>
@@ -123,13 +133,24 @@ export function IngredientScreen() {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  ai,
+  aiLabel = 'AI enhanced',
+  children,
+}: {
+  title: string;
+  ai?: boolean;
+  aiLabel?: string;
+  children: ReactNode;
+}) {
   return (
-    <View className="mx-5 mt-5 rounded-2xl bg-cream p-4">
-      <Text className="mb-2 text-[12px] font-semibold uppercase tracking-widest text-forest">
-        {title}
-      </Text>
-      {children}
+    <View className="mx-5 mt-5">
+      <View className="mb-2 flex-row items-center gap-2">
+        <Text className="text-[12px] font-semibold uppercase tracking-widest text-forest">{title}</Text>
+        {ai ? <AiMark label={aiLabel} /> : null}
+      </View>
+      <View className="rounded-[22px] bg-cream p-4">{children}</View>
     </View>
   );
 }

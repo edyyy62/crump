@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackGlyph } from '../components/Glyphs';
+import { Ionicons } from '@expo/vector-icons';
 import { getDb } from '../db/database';
 import { getScan, listScanIngredients } from '../db/repositories';
 import { useScanStore } from '../store/scans';
@@ -23,6 +23,7 @@ export function ProductScreen() {
   const [ingredients, setIngredients] = useState<ScanIngredient[]>([]);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState('');
+  const [loading, setLoading] = useState(!storeScan);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -32,6 +33,7 @@ export function ProductScreen() {
     setScan(next);
     setIngredients(rows);
     if (next) setDraftName(next.productName);
+    setLoading(false);
   }, [id]);
 
   useEffect(() => {
@@ -39,13 +41,26 @@ export function ProductScreen() {
   }, [load]);
 
   const grouped = useMemo(() => {
-    const parents = ingredients.filter((row) => row.parentId === null);
-    const children = ingredients.filter((row) => row.parentId !== null);
-    return parents.map((parent) => ({
-      parent,
-      children: children.filter((child) => child.parentId === parent.id),
-    }));
+    const listed = ingredients.filter((row) => row.mention !== 'may_contain');
+    const traces = ingredients.filter((row) => row.mention === 'may_contain');
+    const parents = listed.filter((row) => row.parentId === null);
+    const children = listed.filter((row) => row.parentId !== null);
+    return {
+      groups: parents.map((parent) => ({
+        parent,
+        children: children.filter((child) => child.parentId === parent.id),
+      })),
+      traces,
+    };
   }, [ingredients]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-page">
+        <Text className="text-muted">Loading…</Text>
+      </View>
+    );
+  }
 
   if (!scan) {
     return (
@@ -57,73 +72,95 @@ export function ProductScreen() {
 
   return (
     <View className="flex-1 bg-page" style={{ paddingTop: insets.top }}>
-      <View className="flex-row items-center px-3 py-2">
+      <View className="flex-row items-center px-3 py-1">
         <Pressable onPress={() => router.back()} className="p-2">
-          <BackGlyph color={colors.forest} />
+          <Ionicons name="chevron-back" size={26} color={colors.forest} />
         </Pressable>
-        <Text className="text-[13px] font-semibold uppercase tracking-widest text-forest">
-          Product
-        </Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
-        <View className="mx-5 mb-4 flex-row rounded-2xl bg-cream p-3">
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 36 }} showsVerticalScrollIndicator={false}>
+        <View className="mx-5">
           <Image
             source={{ uri: scan.photoUri }}
-            className="h-24 w-24 rounded-xl bg-cream-dark"
+            className="h-48 w-full rounded-[24px] bg-cream-dark"
             contentFit="cover"
           />
-          <View className="ml-3 min-w-0 flex-1">
-            {editing ? (
-              <TextInput
-                autoFocus
-                value={draftName}
-                onChangeText={setDraftName}
-                onBlur={() => {
-                  const next = draftName.trim() || scan.productName;
-                  setEditing(false);
-                  if (next !== scan.productName) {
-                    void rename(scan.id, next);
-                    setScan({ ...scan, productName: next });
-                  }
-                }}
-                className="border-b border-forest text-[20px] font-semibold text-ink"
-              />
-            ) : (
-              <Pressable onPress={() => setEditing(true)}>
-                <Text className="text-[20px] font-semibold text-ink">{scan.productName}</Text>
-                <Text className="mt-0.5 text-[12px] text-muted">Tap to rename</Text>
-              </Pressable>
-            )}
-            {scan.brand ? <Text className="mt-1 text-[14px] text-muted">{scan.brand}</Text> : null}
-            <Text className="mt-1 text-[13px] text-muted">{formatScanDate(scan.scannedAt)}</Text>
-            <View className="mt-2 self-start">
-              <OverallBadge level={scan.overallLevel} counts={scan.counts} />
-            </View>
+        </View>
+
+        <View className="mx-5 mt-4 rounded-[24px] bg-cream p-4">
+          {editing ? (
+            <TextInput
+              autoFocus
+              value={draftName}
+              onChangeText={setDraftName}
+              onBlur={() => {
+                const next = draftName.trim() || scan.productName;
+                setEditing(false);
+                if (next !== scan.productName) {
+                  void rename(scan.id, next);
+                  setScan({ ...scan, productName: next });
+                }
+              }}
+              className="border-b border-forest text-[22px] font-semibold text-ink"
+            />
+          ) : (
+            <Pressable onPress={() => setEditing(true)}>
+              <Text className="text-[22px] font-semibold leading-7 text-ink">{scan.productName}</Text>
+            </Pressable>
+          )}
+          <View className="mt-1.5 flex-row flex-wrap items-center gap-x-2 gap-y-1">
+            {scan.brand ? <Text className="text-[14px] text-muted">{scan.brand}</Text> : null}
+            <Text className="text-[13px] text-muted">{formatScanDate(scan.scannedAt)}</Text>
+          </View>
+          <View className="mt-3">
+            <OverallBadge level={scan.overallLevel} counts={scan.counts} />
           </View>
         </View>
 
-        <Text className="mb-2 px-5 text-[13px] font-semibold uppercase tracking-widest text-muted">
-          Ingredients
-        </Text>
-        <View className="overflow-hidden rounded-2xl mx-5">
-          {grouped.map(({ parent, children }) => (
-            <View key={parent.id}>
+        <View className="mb-2 mt-7 flex-row items-end justify-between px-5">
+          <Text className="text-[13px] font-semibold uppercase tracking-widest text-muted">Ingredients</Text>
+          <Text className="text-[13px] text-muted">{grouped.groups.length}</Text>
+        </View>
+        <View className="mx-5 overflow-hidden rounded-[24px] bg-cream">
+          {grouped.groups.map(({ parent, children }, groupIndex) => (
+            <View key={parent.id} className={groupIndex > 0 ? 'border-t border-cream-dark/80' : ''}>
               <IngredientRow
                 ingredient={parent}
                 onPress={() => router.push(`/ingredient/${parent.id}`)}
               />
               {children.map((child) => (
-                <IngredientRow
-                  key={child.id}
-                  ingredient={child}
-                  nested
-                  onPress={() => router.push(`/ingredient/${child.id}`)}
-                />
+                <View key={child.id} className="border-t border-cream-dark/80">
+                  <IngredientRow
+                    ingredient={child}
+                    nested
+                    onPress={() => router.push(`/ingredient/${child.id}`)}
+                  />
+                </View>
               ))}
             </View>
           ))}
         </View>
+
+        {grouped.traces.length > 0 ? (
+          <>
+            <View className="mb-2 mt-7 flex-row items-end justify-between px-5">
+              <Text className="text-[13px] font-semibold uppercase tracking-widest text-muted">
+                May contain
+              </Text>
+              <Text className="text-[13px] text-muted">{grouped.traces.length}</Text>
+            </View>
+            <View className="mx-5 overflow-hidden rounded-[24px] bg-cream">
+              {grouped.traces.map((row, index) => (
+                <View key={row.id} className={index > 0 ? 'border-t border-cream-dark/80' : ''}>
+                  <IngredientRow
+                    ingredient={row}
+                    onPress={() => router.push(`/ingredient/${row.id}`)}
+                  />
+                </View>
+              ))}
+            </View>
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );
