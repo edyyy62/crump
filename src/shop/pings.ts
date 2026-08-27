@@ -142,11 +142,17 @@ export async function refreshShopGeofences(coords?: {
     ).coords;
   const speed = validSpeedMps(coords?.speed ?? position.speed);
 
-  const found = await searchNearbyGroceries(
-    position.latitude,
-    position.longitude,
-    SHOP_SEARCH_RADIUS_METERS,
-  );
+  let found: GroceryPlace[] = [];
+  try {
+    found = await searchNearbyGroceries(
+      position.latitude,
+      position.longitude,
+      SHOP_SEARCH_RADIUS_METERS,
+      settings.enabledPlaceTypes,
+    );
+  } catch {
+    return lastFenceOrigin ? 1 : 0;
+  }
   const nearest = pickNearestStores(position, found);
   lastFenceAt = Date.now();
   lastFenceOrigin = { latitude: position.latitude, longitude: position.longitude };

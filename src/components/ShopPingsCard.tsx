@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Switch, Text, View } from 'react-native';
-import { colors } from '../theme';
+import { Text, View } from 'react-native';
+import { SettingsToggleRow } from './SettingsToggleRow';
 import { disableShopPings, enableShopPings, isShopPingsEnabled } from '../shop/pings';
 
 export function ShopPingsCard() {
@@ -34,26 +34,17 @@ export function ShopPingsCard() {
   }, [busy, on]);
 
   return (
-    <View className="rounded-[22px] bg-cream px-4 py-3">
-      <View className="flex-row items-center justify-between">
-        <View className="min-w-0 flex-1 pr-3">
-          <Text className="text-[16px] font-semibold text-ink">Shop pings</Text>
-          <Text className="mt-0.5 text-[13px] leading-5 text-muted">
-            If you stay at a grocery store for two minutes, ping to scan a label.
-          </Text>
-        </View>
-        {busy ? (
-          <ActivityIndicator color={colors.forest} />
-        ) : (
-          <Switch
-            value={on}
-            onValueChange={() => void toggle()}
-            trackColor={{ false: colors.creamDark, true: colors.organicSoft }}
-            thumbColor={on ? colors.forest : colors.muted}
-          />
-        )}
-      </View>
-      {message ? <Text className="mt-2 text-[13px] leading-5 text-muted">{message}</Text> : null}
+    <View className="rounded-[22px] bg-cream">
+      <SettingsToggleRow
+        title="Shop pings"
+        body="Ping to scan a label after two minutes at a listed shop."
+        value={on}
+        busy={busy}
+        onToggle={() => void toggle()}
+        footer={
+          message ? <Text className="mt-2 text-[13px] leading-5 text-muted">{message}</Text> : null
+        }
+      />
     </View>
   );
 }

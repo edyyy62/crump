@@ -21,12 +21,17 @@ const GHOST_ROWS = [
 
 export function EmptyHistory({
   onImport,
+  compact = false,
+  embedded = false,
 }: {
   onImport: () => void;
+  compact?: boolean;
+  embedded?: boolean;
 }) {
   const bounce = useSharedValue(0);
 
   useEffect(() => {
+    if (compact) return;
     bounce.value = withRepeat(
       withSequence(
         withTiming(8, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
@@ -35,15 +40,15 @@ export function EmptyHistory({
       -1,
       false,
     );
-  }, [bounce]);
+  }, [bounce, compact]);
 
   const arrowStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: bounce.value }],
   }));
 
   return (
-    <View className="flex-1 justify-center pb-4 pt-2">
-      <View className="rounded-[24px] bg-cream px-5 pb-5 pt-5">
+    <View className={compact || embedded ? 'px-4 pb-4 pt-2' : 'flex-1 justify-center pb-4 pt-2'}>
+      <View className={embedded ? undefined : 'rounded-[24px] bg-cream px-5 pb-5 pt-5'}>
         <Text className="text-[12px] font-semibold uppercase tracking-[3px] text-forest">
           First scan
         </Text>
@@ -82,12 +87,14 @@ export function EmptyHistory({
         </Pressable>
       </View>
 
-      <Animated.View style={arrowStyle} className="mt-7 items-center">
-        <Ionicons name="arrow-down" size={20} color={colors.forest} />
-        <Text className="mt-1 text-[12px] font-semibold uppercase tracking-widest text-forest">
-          Scan label
-        </Text>
-      </Animated.View>
+      {compact ? null : (
+        <Animated.View style={arrowStyle} className="mt-7 items-center">
+          <Ionicons name="arrow-down" size={20} color={colors.forest} />
+          <Text className="mt-1 text-[12px] font-semibold uppercase tracking-widest text-forest">
+            Scan label
+          </Text>
+        </Animated.View>
+      )}
     </View>
   );
 }

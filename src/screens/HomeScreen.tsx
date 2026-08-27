@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useScanStore } from '../store/scans';
 import { useAnalysisStore } from '../store/analysis';
 import { EmptyHistory } from '../components/EmptyHistory';
+import { NearbyShopsCard } from '../components/NearbyShopsCard';
 import { ScanCard } from '../components/ScanCard';
 import { PendingJobCard } from '../components/PendingJobCard';
 import { colors } from '../theme';
@@ -50,7 +51,7 @@ export function HomeScreen() {
           <Text className="text-[12px] font-semibold uppercase tracking-[4px] text-forest">
             What’s in it
           </Text>
-          <Text className="mt-1 text-[42px] font-semibold leading-[46px] tracking-tight text-forest">
+          <Text className="mt-1 text-[36px] font-semibold leading-[40px] tracking-tight text-forest">
             Crump
           </Text>
         </View>
@@ -70,53 +71,67 @@ export function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView
-        className="flex-1 px-5"
-        contentContainerStyle={{
-          paddingBottom: empty ? 132 : 140,
-          flexGrow: empty ? 1 : undefined,
-        }}
-        showsVerticalScrollIndicator={false}
+      <View
+        className="min-h-0 flex-1 flex-col gap-4 px-5"
+        style={{ paddingBottom: Math.max(insets.bottom, 16) + 108 }}
       >
         {!hasOpenAiKey() ? (
-          <View className="mb-3 rounded-[22px] bg-cream px-4 py-3">
+          <View className="rounded-[22px] bg-cream px-4 py-3">
             <Text className="text-[13px] leading-5 text-muted">
               Add OPENAI_API_KEY to a local .env, then restart Expo, to enable label reading.
             </Text>
           </View>
         ) : null}
 
-        {empty ? (
-          <EmptyHistory onImport={importFromGallery} />
-        ) : (
-          <>
-            <View className="mb-3 mt-1 flex-row items-end justify-between">
+        <View className="min-h-0 flex-[2] overflow-hidden rounded-[24px] bg-cream">
+          <View className="flex-row items-center justify-between px-4 pb-1 pt-3">
+            <View className="flex-row items-center gap-1.5">
+              <Ionicons name="time-outline" size={15} color={colors.muted} />
               <Text className="text-[13px] font-semibold uppercase tracking-widest text-muted">
                 History
               </Text>
-              <Text className="text-[13px] text-muted">{scans.length}</Text>
             </View>
-            {jobs.map((job, index) => (
-              <PendingJobCard
-                key={job.id}
-                job={job}
-                index={index}
-                onRetry={() => void retryJob(job.id)}
-                onDismiss={() => void dismissJob(job.id)}
-              />
-            ))}
-            {scans.map((scan, index) => (
-              <ScanCard
-                key={scan.id}
-                scan={scan}
-                index={jobs.length + index}
-                onPress={() => router.push(`/product/${scan.id}`)}
-                onDelete={() => void remove(scan.id)}
-              />
-            ))}
-          </>
-        )}
-      </ScrollView>
+            {empty ? null : <Text className="text-[13px] text-muted">{scans.length}</Text>}
+          </View>
+          <ScrollView
+            className="min-h-0 flex-1"
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={false}
+          >
+              {empty ? (
+                <EmptyHistory compact embedded onImport={importFromGallery} />
+              ) : (
+                <>
+                  {jobs.map((job, index) => (
+                    <PendingJobCard
+                      key={job.id}
+                      job={job}
+                      index={index}
+                      embedded
+                      onRetry={() => void retryJob(job.id)}
+                      onDismiss={() => void dismissJob(job.id)}
+                    />
+                  ))}
+                  {scans.map((scan, index) => (
+                    <ScanCard
+                      key={scan.id}
+                      scan={scan}
+                      index={jobs.length + index}
+                      embedded
+                      bordered={jobs.length + index > 0}
+                      onPress={() => router.push(`/product/${scan.id}`)}
+                      onDelete={() => void remove(scan.id)}
+                    />
+                  ))}
+                </>
+              )}
+          </ScrollView>
+        </View>
+
+        <View className="min-h-0 flex-1">
+          <NearbyShopsCard />
+        </View>
+      </View>
 
       <View
         className="absolute bottom-0 left-0 right-0 items-center"
@@ -135,11 +150,9 @@ export function HomeScreen() {
         >
           <Ionicons name="camera" size={36} color={colors.cream} />
         </Pressable>
-        {empty ? null : (
-          <Text className="mt-2 text-[12px] font-semibold uppercase tracking-widest text-forest">
-            Scan label
-          </Text>
-        )}
+        <Text className="mt-2 text-[12px] font-semibold uppercase tracking-widest text-forest">
+          Scan label
+        </Text>
       </View>
     </View>
   );

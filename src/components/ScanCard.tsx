@@ -12,11 +12,15 @@ const TAP_SLOP = 10;
 export function ScanCard({
   scan,
   index = 0,
+  embedded = false,
+  bordered = false,
   onPress,
   onDelete,
 }: {
   scan: Scan;
   index?: number;
+  embedded?: boolean;
+  bordered?: boolean;
   onPress: () => void;
   onDelete: () => void;
 }) {
@@ -55,8 +59,8 @@ export function ScanCard({
   };
 
   return (
-    <Animated.View entering={enter(index)} className="mb-3">
-      <View className="overflow-hidden rounded-3xl">
+    <Animated.View entering={enter(index)} className={embedded ? undefined : 'mb-3'}>
+      <View className={embedded ? undefined : 'overflow-hidden rounded-3xl'}>
         <Swipeable
           ref={swipeRef}
           friction={1}
@@ -88,7 +92,11 @@ export function ScanCard({
             }}
             onPress={(event) => openDetail(event.nativeEvent.pageX)}
           >
-            <View className="flex-row items-center bg-cream px-3 py-3">
+            <View
+              className={`flex-row items-center bg-cream px-4 py-3 ${
+                bordered ? 'border-t border-cream-dark/80' : ''
+              }`}
+            >
               <Image
                 source={{ uri: scan.photoUri }}
                 className="h-[68px] w-[68px] rounded-2xl bg-cream-dark"

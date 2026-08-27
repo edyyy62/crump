@@ -1,9 +1,6 @@
-export type GroceryPlace = {
-  id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-};
+import type { GroceryPlace } from '../../modules/apple-groceries';
+
+export type { GroceryPlace };
 
 export const SHOP_RADIUS_METERS = 50;
 export const SHOP_DWELL_SECONDS = 120;

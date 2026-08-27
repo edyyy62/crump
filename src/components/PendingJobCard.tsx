@@ -7,11 +7,13 @@ import { Animated, enter } from '../lib/motion';
 export function PendingJobCard({
   job,
   index = 0,
+  embedded = false,
   onRetry,
   onDismiss,
 }: {
   job: AnalysisJob;
   index?: number;
+  embedded?: boolean;
   onRetry: () => void;
   onDismiss: () => void;
 }) {
@@ -30,8 +32,16 @@ export function PendingJobCard({
 
   return (
     <Animated.View entering={enter(index)}>
-      <View className="mb-3 overflow-hidden rounded-3xl bg-cream">
-      <View className="flex-row items-center px-3 py-3">
+      <View
+        className={
+          embedded
+            ? index > 0
+              ? 'border-t border-cream-dark/80'
+              : undefined
+            : 'mb-3 overflow-hidden rounded-3xl bg-cream'
+        }
+      >
+      <View className="flex-row items-center px-4 py-3">
         <View className="h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-cream-dark">
           <Image source={{ uri: job.photoUri }} className="h-16 w-16" contentFit="cover" />
           {running ? (
