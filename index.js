@@ -1,3 +1,4 @@
+import './src/shop/background';
 import { LogBox } from 'react-native';
 
 LogBox.ignoreLogs([

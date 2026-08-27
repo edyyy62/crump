@@ -15,6 +15,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSCameraUsageDescription: 'Crump photographs ingredient labels so it can read them.',
       NSPhotoLibraryUsageDescription: 'Crump imports a label photo from your library.',
+      NSLocationWhenInUseUsageDescription:
+        'Crump uses your location to notice when you are at a grocery store.',
+      NSLocationAlwaysAndWhenInUseUsageDescription:
+        'Crump watches nearby grocery stores in the background so it can ping you to scan a label.',
+      NSLocationAlwaysUsageDescription:
+        'Crump watches nearby grocery stores in the background so it can ping you to scan a label.',
+      UIBackgroundModes: ['location'],
     },
   },
   android: {
@@ -58,6 +65,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         photosPermission: 'Allow Crump to import a label photo from your library.',
       },
     ],
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Crump uses your location to notice when you are at a grocery store.',
+        locationAlwaysAndWhenInUsePermission:
+          'Crump watches nearby grocery stores in the background so it can ping you to scan a label.',
+        locationAlwaysPermission:
+          'Crump watches nearby grocery stores in the background so it can ping you to scan a label.',
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: false,
+      },
+    ],
+    'expo-task-manager',
+    'expo-notifications',
   ],
   extra: {
     openaiApiKey: process.env.OPENAI_API_KEY ?? '',

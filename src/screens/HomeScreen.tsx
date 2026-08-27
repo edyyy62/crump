@@ -54,12 +54,20 @@ export function HomeScreen() {
             Crump
           </Text>
         </View>
-        <Pressable
-          onPress={importFromGallery}
-          className="mb-1 h-11 w-11 items-center justify-center rounded-full bg-cream"
-        >
-          <Ionicons name="images-outline" size={22} color={colors.forest} />
-        </Pressable>
+        <View className="mb-1 flex-row items-center gap-2">
+          <Pressable
+            onPress={importFromGallery}
+            className="h-11 w-11 items-center justify-center rounded-full bg-cream"
+          >
+            <Ionicons name="images-outline" size={22} color={colors.forest} />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            className="h-11 w-11 items-center justify-center rounded-full bg-cream"
+          >
+            <Ionicons name="settings-outline" size={22} color={colors.forest} />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
