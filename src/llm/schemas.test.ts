@@ -33,6 +33,7 @@ describe('scanResponseSchema', () => {
           ],
         },
       ],
+      contains: [],
       mayContain: [
         {
           nameAsPrinted: 'may contain milk',
@@ -62,6 +63,7 @@ describe('scanResponseSchema', () => {
           subIngredients: [],
         },
       ],
+      contains: [],
       mayContain: [],
     });
     expect(result.success).toBe(false);

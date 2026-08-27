@@ -12,7 +12,7 @@ import {
 } from '../db/repositories';
 import { refreshAdditiveCache } from '../db';
 import { randomUUID } from 'expo-crypto';
-import { normalizeENumber } from './matcher';
+import { normalizeENumber, additiveFitsIngredient } from './matcher';
 
 export type IngredientDetail = {
   ingredient: ScanIngredient;
@@ -67,6 +67,10 @@ async function enrichIfNeededUncached(ingredient: ScanIngredient): Promise<{
 }> {
   const db = await getDb();
   let additive = await loadAdditiveForIngredient(ingredient);
+  if (additive && !additiveFitsIngredient(ingredient, additive)) {
+    await linkScanIngredientAdditive(db, ingredient.id, null);
+    additive = null;
+  }
   if (additive && !ingredient.additiveId) {
     await linkScanIngredientAdditive(db, ingredient.id, additive.id);
   }

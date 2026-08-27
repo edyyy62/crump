@@ -28,7 +28,7 @@ export function AnalysisProgress({
   const labelColor = light ? 'text-cream' : 'text-ink';
 
   const fraction = useSharedValue(targetFraction(index, total));
-  const pulse = useSharedValue(0.72);
+  const pulse = useSharedValue(0.88);
 
   useEffect(() => {
     fraction.value = withTiming(targetFraction(index, total), {
@@ -39,7 +39,7 @@ export function AnalysisProgress({
 
   useEffect(() => {
     pulse.value = withRepeat(
-      withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) }),
+      withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
       -1,
       true,
     );

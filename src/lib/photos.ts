@@ -25,20 +25,12 @@ export async function deletePhoto(uri: string): Promise<void> {
 }
 
 export async function downscaleForUpload(uri: string): Promise<string> {
-  const probe = await ImageManipulator.manipulate(uri).renderAsync();
-  const { width, height } = probe;
-  probe.release();
-
-  const longest = Math.max(width, height);
-  const context = ImageManipulator.manipulate(uri);
-  if (longest > 1024) {
-    if (width >= height) context.resize({ width: 1024 });
-    else context.resize({ height: 1024 });
-  }
-  const result = await context.renderAsync();
+  const result = await ImageManipulator.manipulate(uri)
+    .resize({ width: 768 })
+    .renderAsync();
   const saved = await result.saveAsync({
     format: SaveFormat.JPEG,
-    compress: 0.8,
+    compress: 0.72,
   });
   result.release();
   return saved.uri;

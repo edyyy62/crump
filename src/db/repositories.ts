@@ -1,6 +1,6 @@
 import type { Additive, Level, Scan, ScanIngredient, SeedFile } from '../types';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { normalizeENumber } from '../domain/matcher';
+import { applyNatureGrade } from '../domain/labelGrade';
 
 function parseJson<T>(value: string | null, fallback: T): T {
   if (!value) return fallback;
@@ -46,6 +46,10 @@ export function rowToScan(row: Record<string, unknown>): Scan {
 }
 
 export function rowToIngredient(row: Record<string, unknown>): ScanIngredient {
+  const graded = applyNatureGrade({
+    level: row.level as Level,
+    levelReason: String(row.level_reason),
+  });
   return {
     id: String(row.id),
     scanId: String(row.scan_id),
@@ -54,11 +58,16 @@ export function rowToIngredient(row: Record<string, unknown>): ScanIngredient {
     nameAsPrinted: String(row.name_as_printed),
     canonicalName: String(row.canonical_name),
     eNumber: row.e_number ? String(row.e_number) : null,
-    level: row.level as Level,
+    level: graded.level,
     source: row.source as ScanIngredient['source'],
-    levelReason: String(row.level_reason),
+    levelReason: graded.levelReason,
     additiveId: row.additive_id ? String(row.additive_id) : null,
-    mention: row.mention === 'may_contain' ? 'may_contain' : 'listed',
+    mention:
+      row.mention === 'may_contain'
+        ? 'may_contain'
+        : row.mention === 'contains'
+          ? 'contains'
+          : 'listed',
   };
 }
 
@@ -100,7 +109,7 @@ export async function findAdditiveByCanonicalName(
 export async function linkScanIngredientAdditive(
   db: SQLiteDatabase,
   ingredientId: string,
-  additiveId: string,
+  additiveId: string | null,
 ): Promise<void> {
   await db.runAsync('UPDATE scan_ingredients SET additive_id = ? WHERE id = ?', additiveId, ingredientId);
 }

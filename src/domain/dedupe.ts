@@ -50,15 +50,40 @@ export function listedIdentities(ingredients: ScanIngredientParsed[]): Set<strin
   return seen;
 }
 
+export function listedCanonicalNames(ingredients: ScanIngredientParsed[]): string[] {
+  const names: string[] = [];
+  for (const item of ingredients) {
+    names.push(item.canonicalName, item.nameAsPrinted);
+    for (const sub of item.subIngredients) {
+      names.push(sub.canonicalName, sub.nameAsPrinted);
+    }
+  }
+  return names;
+}
+
+export function nameCoveredByListed(listedNames: string[], candidate: string): boolean {
+  const query = normalizeName(candidate);
+  if (!query) return false;
+  return listedNames.some((raw) => {
+    const name = normalizeName(raw);
+    if (!name) return false;
+    if (name === query) return true;
+    if (query.length < 4) return false;
+    return name.startsWith(`${query} `) || name.endsWith(` ${query}`) || name.includes(` ${query} `);
+  });
+}
+
 export function dedupeMayContain(
   mayContain: ScanIngredientParsed['subIngredients'],
   listed: Set<string>,
+  listedNames: string[] = [],
 ): ScanIngredientParsed['subIngredients'] {
   const seen = new Set(listed);
   const result: ScanIngredientParsed['subIngredients'] = [];
   for (const item of mayContain) {
     const key = ingredientIdentity(item);
     if (seen.has(key)) continue;
+    if (nameCoveredByListed(listedNames, item.canonicalName)) continue;
     seen.add(key);
     result.push(item);
   }

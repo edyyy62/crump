@@ -2,6 +2,7 @@ import { randomUUID } from 'expo-crypto';
 import type { Additive, Scan, ScanIngredient } from '../types';
 import { matchIngredient } from '../domain/matcher';
 import { normalizeENumber } from '../domain/matcher';
+import { sentenceCaseName } from './names';
 import { rollup } from '../domain/rollup';
 import { analyzeLabel, LlmError } from '../llm/client';
 import type { ScanIngredientParsed } from '../llm/schemas';
@@ -9,7 +10,8 @@ import { getDb } from '../db/database';
 import { getAdditiveCache } from '../db';
 import { insertScanWithIngredients } from '../db/repositories';
 import { downscaleForUpload, persistPhoto, readBase64 } from '../lib/photos';
-import { dedupeMayContain, dedupeParsedIngredients, listedIdentities } from './dedupe';
+import { applyNatureGrade, mentionForDeclared } from './labelGrade';
+import { dedupeMayContain, dedupeParsedIngredients, listedCanonicalNames, listedIdentities } from './dedupe';
 
 export const ANALYSIS_STEPS = [
   { id: 'prepare', label: 'Preparing the photo' },
@@ -60,8 +62,14 @@ export async function analyzeAndPersist(
     const additives = await getAdditiveCache();
     const scanId = randomUUID();
     const listed = dedupeParsedIngredients(parsed.ingredients);
-    const traces = dedupeMayContain(parsed.mayContain ?? [], listedIdentities(listed));
-    const ingredients = flattenIngredients(scanId, listed, traces, additives);
+    const listedIds = listedIdentities(listed);
+    const listedNames = listedCanonicalNames(listed);
+    const declared = dedupeMayContain(parsed.contains ?? [], listedIds, listedNames);
+    const traces = dedupeMayContain(parsed.mayContain ?? [], listedIdentities([
+      ...listed,
+      ...declared.map((row) => ({ ...row, subIngredients: [] })),
+    ]), [...listedNames, ...declared.map((row) => row.canonicalName)]);
+    const ingredients = flattenIngredients(scanId, listed, declared, traces, additives);
     const { overallLevel, counts } = rollup(
       ingredients.filter((row) => row.mention === 'listed'),
     );
@@ -94,6 +102,7 @@ export async function analyzeAndPersist(
 function flattenIngredients(
   scanId: string,
   parsed: ScanIngredientParsed[],
+  contains: ScanIngredientParsed['subIngredients'],
   mayContain: ScanIngredientParsed['subIngredients'],
   additives: Additive[],
 ): ScanIngredient[] {
@@ -105,15 +114,20 @@ function flattenIngredients(
     parentId: string | null,
     mention: ScanIngredient['mention'],
   ) => {
+    const nature = applyNatureGrade(item);
     const matched = matchIngredient(
       {
         canonicalName: item.canonicalName,
         eNumber: item.eNumber,
-        level: item.level,
-        levelReason: item.levelReason,
+        level: nature.level,
+        levelReason: nature.levelReason,
       },
       additives,
     );
+    const graded = applyNatureGrade({
+      level: matched.level,
+      levelReason: matched.levelReason,
+    });
     const id = randomUUID();
     rows.push({
       id,
@@ -121,11 +135,11 @@ function flattenIngredients(
       position: position++,
       parentId,
       nameAsPrinted: item.nameAsPrinted,
-      canonicalName: item.canonicalName,
+      canonicalName: sentenceCaseName(item.canonicalName),
       eNumber: normalizeENumber(item.eNumber),
-      level: matched.level,
+      level: graded.level,
       source: matched.source,
-      levelReason: matched.levelReason,
+      levelReason: graded.levelReason,
       additiveId: matched.additiveId,
       mention,
     });
@@ -137,6 +151,9 @@ function flattenIngredients(
     for (const sub of item.subIngredients) {
       push(sub, parentId, 'listed');
     }
+  }
+  for (const item of contains) {
+    push(item, null, mentionForDeclared(item));
   }
   for (const item of mayContain) {
     push(item, null, 'may_contain');

@@ -10,6 +10,7 @@ import { useAnalysisStore } from '../store/analysis';
 import { PrimaryButton, ScreenMessage } from '../components/Buttons';
 import { AnalysisProgress } from '../components/AnalysisProgress';
 import { colors } from '../theme';
+import { Animated, enter } from '../lib/motion';
 
 type Phase =
   | 'capture'
@@ -130,15 +131,15 @@ export function ScanScreen() {
         <Image source={{ uri: photoUri }} style={{ flex: 1 }} contentFit="contain" />
         {phase === 'analyzing' ? (
           <View className="absolute inset-0 justify-end bg-forest-deep/75 px-8" style={{ paddingBottom: insets.bottom + 24 }}>
-            <View className="rounded-[24px] bg-forest-deep/90 p-5">
+            <Animated.View entering={enter()} className="rounded-[24px] bg-forest-deep/90 p-5">
               <AnalysisProgress step={analysisStep} light />
               <View className="mt-5">
                 <PrimaryButton label="Continue on Home" tone="cream" onPress={runInBackground} />
               </View>
-            </View>
+            </Animated.View>
           </View>
         ) : (
-          <View className="absolute bottom-0 left-0 right-0 flex-row gap-3 px-5" style={{ paddingBottom: insets.bottom + 16 }}>
+          <Animated.View entering={enter()} className="absolute bottom-0 left-0 right-0 flex-row gap-3 px-5" style={{ paddingBottom: insets.bottom + 16 }}>
             <View className="flex-1">
               <PrimaryButton
                 label="Retake"
@@ -152,7 +153,7 @@ export function ScanScreen() {
             <View className="flex-1">
               <PrimaryButton label="Use photo" onPress={() => void analyze()} />
             </View>
-          </View>
+          </Animated.View>
         )}
       </View>
     );

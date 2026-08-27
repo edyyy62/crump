@@ -2,13 +2,16 @@ import { Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import type { AnalysisJob } from '../store/analysis';
 import { AnalysisProgress } from './AnalysisProgress';
+import { Animated, enter } from '../lib/motion';
 
 export function PendingJobCard({
   job,
+  index = 0,
   onRetry,
   onDismiss,
 }: {
   job: AnalysisJob;
+  index?: number;
   onRetry: () => void;
   onDismiss: () => void;
 }) {
@@ -26,7 +29,8 @@ export function PendingJobCard({
       : (job.message ?? 'Check the connection and retry.');
 
   return (
-    <View className="mb-3 overflow-hidden rounded-3xl bg-cream">
+    <Animated.View entering={enter(index)}>
+      <View className="mb-3 overflow-hidden rounded-3xl bg-cream">
       <View className="flex-row items-center px-3 py-3">
         <View className="h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-cream-dark">
           <Image source={{ uri: job.photoUri }} className="h-16 w-16" contentFit="cover" />
@@ -55,6 +59,7 @@ export function PendingJobCard({
           </Pressable>
         </View>
       ) : null}
-    </View>
+      </View>
+    </Animated.View>
   );
 }

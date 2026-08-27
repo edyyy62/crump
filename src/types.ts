@@ -2,7 +2,7 @@ export const LEVELS = ['organic', 'low', 'moderate', 'high'] as const;
 export type Level = (typeof LEVELS)[number];
 
 export type IngredientSource = 'database' | 'llm';
-export type IngredientMention = 'listed' | 'may_contain';
+export type IngredientMention = 'listed' | 'contains' | 'may_contain';
 
 export interface Scan {
   id: string;

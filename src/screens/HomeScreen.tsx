@@ -88,18 +88,20 @@ export function HomeScreen() {
               </Text>
               <Text className="text-[13px] text-muted">{scans.length}</Text>
             </View>
-            {jobs.map((job) => (
+            {jobs.map((job, index) => (
               <PendingJobCard
                 key={job.id}
                 job={job}
+                index={index}
                 onRetry={() => void retryJob(job.id)}
                 onDismiss={() => void dismissJob(job.id)}
               />
             ))}
-            {scans.map((scan) => (
+            {scans.map((scan, index) => (
               <ScanCard
                 key={scan.id}
                 scan={scan}
+                index={jobs.length + index}
                 onPress={() => router.push(`/product/${scan.id}`)}
                 onDelete={() => void remove(scan.id)}
               />

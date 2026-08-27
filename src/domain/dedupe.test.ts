@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dedupeMayContain, dedupeParsedIngredients, listedIdentities } from './dedupe';
+import { dedupeMayContain, dedupeParsedIngredients, listedCanonicalNames, listedIdentities } from './dedupe';
 import type { ScanIngredientParsed } from '../llm/schemas';
 
 function item(
@@ -91,5 +91,30 @@ describe('dedupeParsedIngredients', () => {
       listedIdentities(listed),
     );
     expect(traces.map((row) => row.canonicalName)).toEqual(['almonds']);
+  });
+
+  it('drops contains items already covered by the recipe', () => {
+    const listed = dedupeParsedIngredients([item('wheat flour'), item('sugar')]);
+    const declared = dedupeMayContain(
+      [
+        {
+          nameAsPrinted: 'wheat',
+          canonicalName: 'Wheat',
+          eNumber: null,
+          level: 'organic',
+          levelReason: 'allergen',
+        },
+        {
+          nameAsPrinted: 'sesame',
+          canonicalName: 'Sesame',
+          eNumber: null,
+          level: 'organic',
+          levelReason: 'allergen',
+        },
+      ],
+      listedIdentities(listed),
+      listedCanonicalNames(listed),
+    );
+    expect(declared.map((row) => row.canonicalName)).toEqual(['Sesame']);
   });
 });

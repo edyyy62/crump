@@ -119,7 +119,7 @@ describe('matchIngredient', () => {
     expect(hit.source).toBe('database');
   });
 
-  it('fuzzy-matches a prefix of ≥ 5 shared characters', () => {
+  it('fuzzy-matches a prefix of a longer additive name', () => {
     const hit = matchIngredient(
       { canonicalName: 'Phosphoric', eNumber: null, ...llm },
       db,
@@ -138,6 +138,21 @@ describe('matchIngredient', () => {
       [...db, near],
     );
     expect(hit.additiveId).toBe('e322');
+  });
+
+  it('does not fuzzy-match short everyday names to nearby additives', () => {
+    const agar = additive({
+      id: 'e406',
+      canonicalName: 'Agar',
+      aliases: ['Agar-agar', 'Agars'],
+      eNumber: 'E406',
+    });
+    const hit = matchIngredient(
+      { canonicalName: 'Sugar', eNumber: null, level: 'low', levelReason: 'sweetener' },
+      [...db, agar],
+    );
+    expect(hit.additiveId).toBeNull();
+    expect(hit.source).toBe('llm');
   });
 
   it('falls back to the LLM when nothing matches', () => {

@@ -61,6 +61,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ],
   extra: {
     openaiApiKey: process.env.OPENAI_API_KEY ?? '',
-    openaiModel: 'gpt-4o-mini',
+    openaiModel: 'gpt-5-mini',
   },
 });

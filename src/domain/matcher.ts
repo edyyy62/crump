@@ -39,9 +39,17 @@ function namesOf(additive: Additive): string[] {
 function fuzzyDistance(query: string, candidate: string): number | null {
   if (query === candidate) return 0;
   const distance = levenshtein(query, candidate);
-  if (distance <= 2) return distance;
+  const minLen = Math.min(query.length, candidate.length);
+  const maxLen = Math.max(query.length, candidate.length);
+  const allowed = minLen < 6 ? 0 : minLen < 9 ? 1 : 2;
+  if (distance > 0 && distance <= allowed) return distance;
+
   const [shorter, longer] = query.length <= candidate.length ? [query, candidate] : [candidate, query];
-  if (shorter.length >= 5 && longer.startsWith(shorter)) {
+  if (
+    shorter.length >= 6 &&
+    longer.startsWith(shorter) &&
+    longer.length - shorter.length <= 8
+  ) {
     return longer.length - shorter.length + 0.5;
   }
   return null;
@@ -104,6 +112,23 @@ export function matchIngredient(parsed: ParsedIngredient, additives: Additive[])
     source: 'database',
     additiveId: matched.id,
   };
+}
+
+export function additiveFitsIngredient(
+  ingredient: { canonicalName: string; eNumber: string | null },
+  additive: Additive,
+): boolean {
+  return (
+    matchIngredient(
+      {
+        canonicalName: ingredient.canonicalName,
+        eNumber: ingredient.eNumber,
+        level: 'low',
+        levelReason: '',
+      },
+      [additive],
+    ).additiveId === additive.id
+  );
 }
 
 export function matchIngredients(parsed: ParsedIngredient[], additives: Additive[]): MatchResult[] {

@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 
-const DEFAULT_MODEL = 'gpt-4o-mini';
+const DEFAULT_MODEL = 'gpt-5-mini';
 
 type Extra = {
   openaiApiKey?: string;
@@ -9,8 +9,7 @@ type Extra = {
 
 export function extraConfig(): Extra {
   const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
-  // Do not read extra.openaiModel: the native binary still has gpt-5-mini from
-  // the last Xcode build, and a Metro reload cannot change that snapshot.
+  // Last native extra snapshot can lag Metro; the live model lives in client.ts.
   return {
     openaiApiKey: extra.openaiApiKey || '',
     openaiModel: DEFAULT_MODEL,

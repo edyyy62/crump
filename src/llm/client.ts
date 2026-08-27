@@ -35,12 +35,21 @@ function config() {
   }
   return {
     apiKey: openaiApiKey,
-    model: 'gpt-4o-mini',
   };
 }
 
-async function chatCompletion(body: Record<string, unknown>): Promise<unknown> {
+const ANALYSIS_MODEL = 'gpt-5-mini';
+const FAST_FALLBACK = 'gpt-4o-mini';
+
+async function chatCompletion(
+  body: Record<string, unknown>,
+  model: string,
+): Promise<unknown> {
   const { apiKey } = config();
+  const payload: Record<string, unknown> = { model, ...body };
+  if (model.startsWith('gpt-5')) {
+    payload.reasoning_effort = 'minimal';
+  }
   let response: Response;
   try {
     response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -49,7 +58,7 @@ async function chatCompletion(body: Record<string, unknown>): Promise<unknown> {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
   } catch {
     throw new LlmError('Could not reach the analysis service', 'network');
@@ -86,13 +95,11 @@ async function completeValidated<T>(
   body: Record<string, unknown>,
   parse: (data: unknown) => T,
 ): Promise<T> {
-  const { model } = config();
-  const payload = { model, ...body };
   try {
-    return parse(await chatCompletion(payload));
+    return parse(await chatCompletion(body, ANALYSIS_MODEL));
   } catch (error) {
-    if (error instanceof LlmError && error.kind === 'schema') {
-      return parse(await chatCompletion(payload));
+    if (error instanceof LlmError && error.kind === 'api') {
+      return parse(await chatCompletion(body, FAST_FALLBACK));
     }
     throw error;
   }
@@ -133,7 +140,10 @@ export async function analyzeLabel(imageBase64: string): Promise<ScanResponse> {
             { type: 'text', text: SCAN_USER_PROMPT },
             {
               type: 'image_url',
-              image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
+              image_url: {
+                url: `data:image/jpeg;base64,${imageBase64}`,
+                detail: 'high',
+              },
             },
           ],
         },

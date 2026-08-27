@@ -7,11 +7,13 @@ import { getDb } from '../db/database';
 import { getScanIngredient } from '../db/repositories';
 import { enrichIfNeeded, isEnriched, loadAdditiveForIngredient } from '../domain/enrich';
 import { LEVEL_HINTS } from '../domain/level';
+import { sentenceCaseName } from '../domain/names';
 import { LevelBadge } from '../components/LevelBadge';
 import { AiMark } from '../components/AiMark';
 import { SkeletonBlock } from '../components/SkeletonBlock';
 import { colors, levelHeader } from '../theme';
-import type { Additive, ScanIngredient } from '../types';
+import { Animated, enterSoft } from '../lib/motion';
+import { applyNatureGrade } from '../domain/labelGrade';
 
 export function IngredientScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -47,17 +49,25 @@ export function IngredientScreen() {
 
   const headerLevel = ingredient?.level ?? 'low';
   const headerColor = levelHeader[headerLevel];
-  const canonical = additive?.canonicalName ?? ingredient?.canonicalName ?? '';
+  const canonical = sentenceCaseName(ingredient?.canonicalName ?? '');
   const printed = ingredient?.nameAsPrinted;
   const showPrinted = printed && printed.toLowerCase() !== canonical.toLowerCase();
   const description = additive?.description || null;
   const purpose = additive?.purpose || null;
-  const reason = ingredient?.levelReason || additive?.levelReason || '';
+  const reason = applyNatureGrade({
+    level: headerLevel,
+    levelReason: ingredient?.levelReason || additive?.levelReason || '',
+  }).levelReason;
   const typical = additive?.typicalProducts;
   const alternatives = additive?.alternatives;
   const aiGraded = ingredient?.source === 'llm';
   const aiCopy = Boolean(additive?.enrichedAt);
   const hasWhere = Boolean(typical?.length || alternatives?.length);
+  const hint = LEVEL_HINTS[headerLevel];
+  const headerNote =
+    showPrinted && printed
+      ? `On the pack as ${printed}, ${hint.charAt(0).toLowerCase()}${hint.slice(1)}`
+      : hint;
 
   return (
     <View className="flex-1 bg-page" style={{ paddingTop: insets.top }}>
@@ -68,29 +78,23 @@ export function IngredientScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
-        <View className="mx-5 overflow-hidden rounded-[24px] p-5" style={{ backgroundColor: headerColor }}>
-          <Text className="text-[28px] font-semibold leading-8 text-ink">{canonical}</Text>
-          {showPrinted ? (
-            <Text className="mt-1 text-[14px] italic text-ink/70">On the pack: {printed}</Text>
-          ) : null}
-          <View className="mt-3 flex-row flex-wrap items-center gap-1.5">
-            {ingredient?.eNumber ? (
-              <View className="rounded px-1.5 py-px bg-white/50">
-                <Text className="text-[10px] font-semibold text-forest">{ingredient.eNumber}</Text>
-              </View>
-            ) : null}
-            {ingredient ? <LevelBadge level={headerLevel} /> : null}
-            {aiGraded ? <AiMark label="AI graded" /> : null}
-          </View>
-          {ingredient?.mention === 'may_contain' ? (
-            <Text className="mt-2 text-[13px] leading-5 text-ink/70">
-              A may-contain / traces warning on the pack, not a recipe ingredient.
-            </Text>
-          ) : null}
-          <Text className="mt-3 text-[13px] leading-5 text-ink/70">{LEVEL_HINTS[headerLevel]}</Text>
+        <View className="mx-5 overflow-hidden rounded-[24px] px-5 pb-5 pt-5" style={{ backgroundColor: headerColor }}>
+          <Animated.View entering={enterSoft(0)}>
+            <Text className="text-[28px] font-semibold leading-8 text-ink">{canonical}</Text>
+            <Text className="mt-2 text-[13px] leading-5 text-ink/70">{headerNote}</Text>
+            <View className="mt-2.5 flex-row flex-wrap items-center gap-2">
+              {ingredient?.eNumber ? (
+                <View className="rounded-full px-2 py-0.5 bg-white/50">
+                  <Text className="text-[11px] font-semibold leading-[14px] text-forest">{ingredient.eNumber}</Text>
+                </View>
+              ) : null}
+              {ingredient ? <LevelBadge level={headerLevel} /> : null}
+              {aiGraded ? <AiMark label="AI graded" /> : null}
+            </View>
+          </Animated.View>
         </View>
 
-        <Section title="What it is" ai={aiCopy && Boolean(description || purpose)}>
+        <Section title="What it is" index={1} ai={aiCopy && Boolean(description || purpose)}>
           {description ? <Text className="text-[16px] leading-6 text-ink">{description}</Text> : null}
           {purpose ? <Text className="mt-2 text-[16px] leading-6 text-ink">{purpose}</Text> : null}
           {!description && !purpose && enriching ? <SkeletonCopy /> : null}
@@ -99,7 +103,7 @@ export function IngredientScreen() {
           ) : null}
         </Section>
 
-        <Section title="Why this grade" ai={aiGraded} aiLabel="AI graded">
+        <Section title="Why this grade" index={2} ai={aiGraded} aiLabel="AI graded">
           {reason ? (
             <Text className="text-[16px] leading-6 text-ink">{reason}</Text>
           ) : enriching ? (
@@ -109,7 +113,7 @@ export function IngredientScreen() {
           )}
         </Section>
 
-        <Section title="Where it shows up" ai={aiCopy && hasWhere}>
+        <Section title="Where it shows up" index={3} ai={aiCopy && hasWhere}>
           {enriching && !typical ? <SkeletonCopy /> : null}
           {typical && typical.length > 0 ? (
             <Text className="text-[16px] leading-6 text-ink">Typical in {typical.join(', ')}.</Text>
@@ -135,11 +139,13 @@ export function IngredientScreen() {
 
 function Section({
   title,
+  index,
   ai,
   aiLabel = 'AI enhanced',
   children,
 }: {
   title: string;
+  index: number;
   ai?: boolean;
   aiLabel?: string;
   children: ReactNode;
@@ -150,7 +156,9 @@ function Section({
         <Text className="text-[12px] font-semibold uppercase tracking-widest text-forest">{title}</Text>
         {ai ? <AiMark label={aiLabel} /> : null}
       </View>
-      <View className="rounded-[22px] bg-cream p-4">{children}</View>
+      <View className="rounded-[22px] bg-cream p-4">
+        <Animated.View entering={enterSoft(index)}>{children}</Animated.View>
+      </View>
     </View>
   );
 }
