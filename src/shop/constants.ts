@@ -67,6 +67,22 @@ export function formatDuration(ms: number): string {
 }
 
 export const SHOP_EXIT_METERS = SHOP_RADIUS_METERS + 30;
+/** Faster than a lingering walk — skip or cancel pings while in transit. */
+export const SHOP_TRANSIT_SPEED_MPS = 4;
+
+export function validSpeedMps(speed: number | null | undefined): number | null {
+  if (speed == null || speed < 0) return null;
+  return speed;
+}
+
+export function shouldEndVisit(
+  meters: number,
+  speedMps?: number | null,
+): boolean {
+  if (meters > SHOP_EXIT_METERS) return true;
+  const speed = validSpeedMps(speedMps);
+  return speed != null && speed > SHOP_TRANSIT_SPEED_MPS;
+}
 
 export function dwellRemainingMs(enteredAt: number, now: number): number {
   return SHOP_DWELL_SECONDS * 1000 - (now - enteredAt);

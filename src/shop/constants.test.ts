@@ -8,6 +8,7 @@ import {
   formatDuration,
   shopTimerState,
   dwellRemainingMs,
+  shouldEndVisit,
 } from './constants';
 
 describe('pickNearestStores', () => {
@@ -58,6 +59,19 @@ describe('dwellRemainingMs', () => {
   it('is zero after two minutes', () => {
     expect(dwellRemainingMs(0, 120_000)).toBe(0);
     expect(dwellRemainingMs(0, 90_000)).toBe(30_000);
+  });
+});
+
+describe('shouldEndVisit', () => {
+  it('ends the visit after leaving the linger radius', () => {
+    expect(shouldEndVisit(81)).toBe(true);
+    expect(shouldEndVisit(40)).toBe(false);
+  });
+
+  it('ends the visit while moving faster than a linger', () => {
+    expect(shouldEndVisit(20, 8)).toBe(true);
+    expect(shouldEndVisit(20, 1)).toBe(false);
+    expect(shouldEndVisit(20, -1)).toBe(false);
   });
 });
 

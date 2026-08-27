@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { GEOFENCE_TASK, LOCATION_TASK } from './constants';
-import { handleGeofenceEvent, refreshShopGeofences } from './pings';
+import { handleGeofenceEvent, onBackgroundLocation } from './pings';
 
 type GeofencePayload = {
   eventType?: Location.GeofencingEventType;
@@ -9,7 +9,9 @@ type GeofencePayload = {
 };
 
 type LocationPayload = {
-  locations?: { coords: { latitude: number; longitude: number } }[];
+  locations?: {
+    coords: { latitude: number; longitude: number; speed?: number | null };
+  }[];
 };
 
 if (!TaskManager.isTaskDefined(GEOFENCE_TASK)) {
@@ -28,6 +30,6 @@ if (!TaskManager.isTaskDefined(LOCATION_TASK)) {
     if (error) return;
     const coords = (data as LocationPayload).locations?.at(-1)?.coords;
     if (!coords) return;
-    void refreshShopGeofences(coords);
+    void onBackgroundLocation(coords);
   });
 }
